@@ -39,6 +39,9 @@ func (pool *ObcyPool) Receive() *Obcy {
 }
 
 func (pool *ObcyPool) Put(obcy *Obcy) {
+	if obcy.closed {
+		return
+	}
 	pool.mutex.Lock()
 	pool.obcyList = append(pool.obcyList, obcy)
 	pool.mutex.Unlock()
@@ -64,6 +67,9 @@ func (obcy *Obcy) Listen() {
 		if err != nil {
 			if !obcy.closed {
 				log.Println("Data receive failed!", err)
+			}
+			if obcy.strangerDisconnectedListener != nil {
+				obcy.strangerDisconnectedListener()
 			}
 			_ = obcy.Close()
 			return
@@ -358,7 +364,7 @@ func (obcies *Obcies) listenConnectionStatusProxy(logPrefix string, clientOne, c
 
 func (obcies *Obcies) createClient() (obcy *Obcy, err error) {
 	obcy = obcies.service.obcyPool.Receive()
-	if obcy == nil {
+	if obcy == nil || obcy.closed {
 		obcy = new(Obcy)
 		err = obcy.Connect()
 		if err != nil {
