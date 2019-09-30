@@ -58,6 +58,7 @@ type Obcy struct {
 	strangerDisconnectedListener func()
 	strangerTypingStatusListener func(status bool)
 	closed                       bool
+	writeMutex                   *sync.Mutex
 }
 
 func (obcy *Obcy) Listen() {
@@ -146,7 +147,9 @@ func (obcy *Obcy) Connect() (err error) {
 
 func (obcy *Obcy) writePacket(packet string) (err error) {
 	//log.Println("Sending packet:", packet)
+	obcy.writeMutex.Lock()
 	err = obcy.client.WriteMessage(websocket.TextMessage, []byte(packet))
+	obcy.writeMutex.Unlock()
 	return
 }
 
@@ -319,7 +322,7 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 		obcies.chatMutex.Unlock()
 
 		obcies.chatMutex.RLock()
-		if !!obcies.showMessages && (len(obcies.chatHistory) >= 5 || strings.Contains(message, ".")) {
+		if !obcies.showMessages && (len(obcies.chatHistory) >= 5 || strings.Contains(message, ".")) {
 			obcies.chatMutex.RUnlock()
 
 			obcies.showMessages = true
@@ -385,6 +388,7 @@ func (obcies *Obcies) createClient() (obcy *Obcy, err error) {
 	obcy = obcies.service.obcyPool.Receive()
 	if obcy == nil || obcy.closed {
 		obcy = new(Obcy)
+		obcy.writeMutex = &sync.Mutex{}
 		err = obcy.Connect()
 		if err != nil {
 			err = fmt.Errorf("connect failed: %s", err.Error())
