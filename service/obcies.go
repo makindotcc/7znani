@@ -91,11 +91,24 @@ func (obcy *Obcy) Listen() {
 }
 
 func (obcy *Obcy) Connect() (err error) {
-	resp, err := http.Get("https://api.ipify.org/?format=raw")
+	resp, err := http.Get("https://6obcy.org/rozmowa")
+	if err != nil {
+		return
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		return
+	}
+
+	resp, err = http.Get("https://api.ipify.org/?format=raw")
 	if err != nil {
 		return
 	}
 	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return
 	}
@@ -259,11 +272,17 @@ func (obcies *Obcies) Connect() (err error) {
 			log.Println("Closing inactive session id:", obcies.sessionId)
 			err := obcies.clientOne.DisconnectRetard()
 			if err == nil {
+				if obcies.clientOne.strangerDisconnectedListener != nil {
+					obcies.clientOne.strangerDisconnectedListener()
+				}
 				obcies.service.obcyPool.Put(obcies.clientOne)
 			}
 
 			err = obcies.clientTwo.DisconnectRetard()
 			if err == nil {
+				if obcies.clientOne.strangerDisconnectedListener != nil {
+					obcies.clientOne.strangerDisconnectedListener()
+				}
 				obcies.service.obcyPool.Put(obcies.clientTwo)
 			}
 		} else {
