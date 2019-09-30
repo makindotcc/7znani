@@ -167,6 +167,6 @@ func (service *ObcyService) InjectMessage(sender CommandSender, sessionId int, w
 		log.Println("Write message error", err)
 		sender.SendMessage("Write message error")
 	} else {
-		sender.SendMessage("Sent message successfully. Receiver: " + who + ", Message:" + message)
+		sender.SendMessage("Sent message successfully. Receiver: " + who + ", Message: " + message)
 	}
 }

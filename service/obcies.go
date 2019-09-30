@@ -283,8 +283,8 @@ func (obcies *Obcies) Connect() (err error) {
 
 			err = obcies.clientTwo.DisconnectRetard()
 			if err == nil {
-				if obcies.clientOne.strangerDisconnectedListener != nil {
-					obcies.clientOne.strangerDisconnectedListener()
+				if obcies.clientTwo.strangerDisconnectedListener != nil {
+					obcies.clientTwo.strangerDisconnectedListener()
 				}
 				obcies.service.obcyPool.Put(obcies.clientTwo)
 			}
