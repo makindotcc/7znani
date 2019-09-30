@@ -374,8 +374,8 @@ func (obcies *Obcies) listenTypeStatusProxy(logPrefix string, clientOne, clientT
 func (obcies *Obcies) listenConnectionStatusProxy(logPrefix string, clientOne, clientTwo *Obcy) {
 	clientOne.OnStrangerDisconnected(func() {
 		if obcies.showMessages {
-			obcies.service.LogMessage(logPrefix + " rozłączył się")
 			obcies.showMessages = false
+			obcies.service.LogMessage(logPrefix + " rozłączył się")
 		}
 		defer func() {
 			if obcies.disconnectListener != nil {
