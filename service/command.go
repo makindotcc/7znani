@@ -176,7 +176,7 @@ func NewSendCommand(service *ObcyService) *SendCommand {
 }
 
 func (command *SendCommand) Name() string {
-	return "send"
+	return "sendto"
 }
 
 func (command *SendCommand) Handle(sender CommandSender, args []string) (err error) {

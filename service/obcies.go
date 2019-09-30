@@ -321,7 +321,8 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 		obcies.chatHistory = append(obcies.chatHistory, fmt.Sprintf("%s: %s", logPrefix, message))
 		obcies.chatMutex.Unlock()
 
-		obcies.chatMutex.RLock()
+		obcies.service.LogMessage(logPrefix + ": " + message)
+		/*obcies.chatMutex.RLock()
 		if !obcies.showMessages && (len(obcies.chatHistory) >= 5 || strings.Contains(message, ".")) {
 			obcies.chatMutex.RUnlock()
 
@@ -335,11 +336,11 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 			obcies.service.LogMessage(builder.String())
 		} else {
 			obcies.chatMutex.RUnlock()
-		}
 
-		if obcies.showMessages {
-			obcies.service.LogMessage(logPrefix + " napisał " + message)
-		}
+			if obcies.showMessages {
+				obcies.service.LogMessage(logPrefix + ": " + message)
+			}
+		}*/
 
 		err := clientTwo.WriteMessage(message)
 		if err != nil {
