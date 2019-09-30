@@ -139,6 +139,13 @@ func (packet *StrangerConnectedPacket) Parse(value *fastjson.Value) (err error) 
 
 func (packet *StrangerConnectedPacket) Handle(obcy *Obcy) (err error) {
 	obcy.ckey = packet.Ckey
+	obcy.ceid++
+	err = obcy.writePacket(fmt.Sprintf(`4{"ev_name":"_begacked","ev_data":{"ckey":"%s"},"ceid":%d}`,
+		escapeValue(packet.Ckey), obcy.ceid))
+
+	if err != nil {
+		return
+	}
 	if obcy.strangerConnectedListener != nil {
 		obcy.strangerConnectedListener()
 	}
