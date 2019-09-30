@@ -42,6 +42,11 @@ func (pool *ObcyPool) Put(obcy *Obcy) {
 	if obcy.closed {
 		return
 	}
+	obcy.strangerDisconnectedListener = nil
+	obcy.strangerConnectedListener = nil
+	obcy.strangerTypingStatusListener = nil
+	obcy.messageListener = nil
+
 	pool.mutex.Lock()
 	pool.obcyList = append(pool.obcyList, obcy)
 	pool.mutex.Unlock()
@@ -220,6 +225,7 @@ type Obcies struct {
 	chatMutex          *sync.RWMutex
 	service            *ObcyService
 	showMessages       bool
+	closed             bool
 }
 
 func NewObcies(service *ObcyService) *Obcies {
@@ -237,6 +243,7 @@ func (obcies *Obcies) Connect() (err error) {
 	obcies.disconnectListener = func() {
 		//log.Println("Obcies session closing")
 		dcChan <- 1
+		obcies.closed = true
 	}
 
 	obcies.showMessages = true
@@ -275,6 +282,10 @@ func (obcies *Obcies) Connect() (err error) {
 
 	go func() {
 		time.Sleep(60 * time.Second)
+		if obcies.closed {
+			return
+		}
+
 		obcies.chatMutex.RLock()
 		if len(obcies.chatHistory) <= 2 {
 			obcies.chatMutex.RUnlock()
