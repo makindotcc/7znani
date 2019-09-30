@@ -55,7 +55,7 @@ func (service *ObcyService) Start(discordToken string) (err error) {
 		time.Sleep(1 * time.Second)
 		go func() {
 			for {
-				log.Println("--- nowa rozmowa ---")
+				service.LogMessage("--- nowa rozmowa ---")
 
 				// sync counter btw im lazy
 				service.obciesMutex.Lock()

@@ -91,8 +91,8 @@ func (obcy *Obcy) Listen() {
 	}
 }
 
-func (obcy *Obcy) Connect() (err error) {
-	resp, err := http.Get("https://6obcy.org/rozmowa")
+func doHttpGet(url string) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return
 	}
@@ -100,8 +100,13 @@ func (obcy *Obcy) Connect() (err error) {
 	if err != nil {
 		return
 	}
+}
 
-	resp, err = http.Get("https://api.ipify.org/?format=raw")
+func (obcy *Obcy) Connect() (err error) {
+	doHttpGet("https://6obcy.org/rozmowa")
+	doHttpGet("https://6obcy.org/ajax/addressData")
+
+	resp, err := http.Get("https://api.ipify.org/?format=raw")
 	if err != nil {
 		return
 	}
@@ -234,6 +239,8 @@ func (obcies *Obcies) Connect() (err error) {
 		dcChan <- 1
 	}
 
+	obcies.showMessages = true
+
 	obcies.clientOne, err = obcies.createClient()
 	if err != nil {
 		return fmt.Errorf("client one connect failed: %s", err.Error())
@@ -321,13 +328,12 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 		obcies.chatHistory = append(obcies.chatHistory, fmt.Sprintf("%s: %s", logPrefix, message))
 		obcies.chatMutex.Unlock()
 
-		obcies.service.LogMessage(logPrefix + ": " + message)
-		/*obcies.chatMutex.RLock()
+		obcies.chatMutex.RLock()
 		if !obcies.showMessages && (len(obcies.chatHistory) >= 5 || strings.Contains(message, ".")) {
 			obcies.chatMutex.RUnlock()
 
 			obcies.showMessages = true
-			obcies.service.LogMessage("``WOW!!! 5 wiadomosci zostalo wyslanych!!``")
+			obcies.service.LogMessage("``5 wiadomosci zostalo wyslanych!!``")
 			builder := strings.Builder{}
 			for _, message := range obcies.chatHistory {
 				builder.WriteString(message)
@@ -340,7 +346,7 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 			if obcies.showMessages {
 				obcies.service.LogMessage(logPrefix + ": " + message)
 			}
-		}*/
+		}
 
 		err := clientTwo.WriteMessage(message)
 		if err != nil {
@@ -369,6 +375,7 @@ func (obcies *Obcies) listenConnectionStatusProxy(logPrefix string, clientOne, c
 	clientOne.OnStrangerDisconnected(func() {
 		if obcies.showMessages {
 			obcies.service.LogMessage(logPrefix + " rozłączył się")
+			obcies.showMessages = false
 		}
 		defer func() {
 			if obcies.disconnectListener != nil {
