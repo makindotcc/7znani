@@ -9,11 +9,11 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Fatal("./app <token>")
+	if len(os.Args) < 5 {
+		log.Fatal("./app <token> <webhookid> <webhooktoken> <channelid>")
 	}
 
-	proxy := service.NewObcyService(discord.NewWebhookExecutorConfig(os.Args[2], os.Args[3]))
+	proxy := service.NewObcyService(discord.NewWebhookExecutorConfig(os.Args[2], os.Args[3]), os.Args[4])
 	err := proxy.Start(os.Args[1])
 	if err != nil {
 		panic(err)
