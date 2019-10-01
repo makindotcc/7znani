@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -99,8 +100,19 @@ func (obcy *Obcy) Listen() {
 	}
 }
 
-func doHttpGet(url string) {
-	resp, err := http.Get(url)
+func doHttpGet(localAddr *net.TCPAddr, url string) {
+	client := &http.Client{}
+	client.Transport = &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
+			return (&net.Dialer{
+				Timeout:   3 * time.Second,
+				LocalAddr: localAddr,
+				DualStack: false,
+			}).Dial("tcp", addr)
+		},
+	}
+
+	resp, err := client.Get(url)
 	if err != nil {
 		return
 	}
@@ -111,8 +123,12 @@ func doHttpGet(url string) {
 }
 
 func (obcy *Obcy) Connect() (err error) {
-	doHttpGet("https://6obcy.org/rozmowa")
-	doHttpGet("https://6obcy.org/ajax/addressData")
+	localAddr := &net.TCPAddr{
+		IP: net.ParseIP(obcy.localAddr),
+	}
+
+	doHttpGet(localAddr, "https://6obcy.org/rozmowa")
+	doHttpGet(localAddr, "https://6obcy.org/ajax/addressData")
 
 	port := rand.Intn(8) + 7001
 	headers := http.Header{}
@@ -121,9 +137,6 @@ func (obcy *Obcy) Connect() (err error) {
 	http.Header.Add(headers, "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36")
 	websocket.DefaultDialer.EnableCompression = true
 
-	localAddr := &net.TCPAddr{
-		IP: net.ParseIP(obcy.localAddr),
-	}
 	websocket.DefaultDialer.NetDial = func(network, addr string) (conn net.Conn, e error) {
 		return (&net.Dialer{
 			Timeout:   3 * time.Second,
