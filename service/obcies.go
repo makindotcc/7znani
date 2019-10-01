@@ -130,7 +130,7 @@ func (obcy *Obcy) Connect() (err error) {
 	doHttpGet(localAddr, "https://6obcy.org/rozmowa")
 	doHttpGet(localAddr, "https://6obcy.org/ajax/addressData")
 
-	port := rand.Intn(8) + 7001
+	port := rand.Intn(9) + 7001
 	headers := http.Header{}
 	http.Header.Add(headers, "Host", fmt.Sprintf("server.6obcy.pl:%d", port))
 	http.Header.Add(headers, "Origin", "https://6obcy.org")
