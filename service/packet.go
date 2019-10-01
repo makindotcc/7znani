@@ -42,6 +42,9 @@ func (handler *ObcyPacketHandler) createPacketInstance(packetId string) (packet 
 	case strangerTypingStatusId:
 		packet = new(StrangerTypingStatusPacket)
 		break
+	case connectionStatusId:
+		packet = new(ConnectionStatusPacket)
+		break
 	}
 	return
 }
@@ -99,8 +102,8 @@ func (packet *IncomingMessagePacket) Parse(value *fastjson.Value) (err error) {
 }
 
 func (packet *IncomingMessagePacket) Handle(obcy *Obcy) (err error) {
-	if obcy.messageListener != nil {
-		obcy.messageListener(packet.Message)
+	if obcy.messageReceiveListener != nil {
+		obcy.messageReceiveListener(packet.Message)
 	}
 	return
 }
@@ -139,9 +142,8 @@ func (packet *StrangerConnectedPacket) Parse(value *fastjson.Value) (err error) 
 
 func (packet *StrangerConnectedPacket) Handle(obcy *Obcy) (err error) {
 	obcy.ckey = packet.Ckey
-	obcy.ceid++
 	err = obcy.writePacket(fmt.Sprintf(`4{"ev_name":"_begacked","ev_data":{"ckey":"%s"},"ceid":%d}`,
-		escapeValue(packet.Ckey), obcy.ceid))
+		escapeValue(packet.Ckey), obcy.generateCeid()))
 
 	if err != nil {
 		return
@@ -187,5 +189,28 @@ func (packet *StrangerTypingStatusPacket) Handle(obcy *Obcy) (err error) {
 	if obcy.strangerTypingStatusListener != nil {
 		obcy.strangerTypingStatusListener(packet.Typing)
 	}
+	return
+}
+
+const connectionStatusId = "cn_acc"
+
+type ConnectionStatusPacket struct {
+	Hash string
+}
+
+func (packet *ConnectionStatusPacket) Parse(value *fastjson.Value) (err error) {
+	//4{"ev_name":"cn_acc","ev_data":{"conn_id":"rX5jJPXeUOOMRjZ","hash":"51#83#230#171"}}
+	hash := value.GetStringBytes("hash")
+	if hash == nil {
+		return
+	}
+	packet.Hash = string(hash)
+	return err
+}
+
+func (packet *ConnectionStatusPacket) Handle(obcy *Obcy) (err error) {
+	err = obcy.writePacket(fmt.Sprintf(
+		`4{"ev_name":"_cinfo","ev_data":{"cvdate":"2017-08-01","mobile":false,"cver":"v2.5","adf":"ajaxPHP","hash":"%s","testdata":{"ckey":%d,"recevsent":false}}}`,
+		packet.Hash, obcy.generateCeid()))
 	return
 }

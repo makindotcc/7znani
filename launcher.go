@@ -3,16 +3,17 @@ package main
 import (
 	"bufio"
 	"log"
+	"obcyproxy/discord"
 	"obcyproxy/service"
 	"os"
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 4 {
 		log.Fatal("./app <token>")
 	}
 
-	proxy := service.NewObcyService()
+	proxy := service.NewObcyService(discord.NewWebhookExecutorConfig(os.Args[2], os.Args[3]))
 	err := proxy.Start(os.Args[1])
 	if err != nil {
 		panic(err)

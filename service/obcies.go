@@ -3,10 +3,10 @@ package service
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"obcyproxy/fancytext"
 	"strings"
 	"sync"
 	"time"
@@ -45,7 +45,7 @@ func (pool *ObcyPool) Put(obcy *Obcy) {
 	obcy.strangerDisconnectedListener = nil
 	obcy.strangerConnectedListener = nil
 	obcy.strangerTypingStatusListener = nil
-	obcy.messageListener = nil
+	obcy.messageReceiveListener = nil
 
 	pool.mutex.Lock()
 	pool.obcyList = append(pool.obcyList, obcy)
@@ -58,10 +58,11 @@ type Obcy struct {
 	ckey                         string
 	messageId                    int
 	packetHandler                PacketHandler
-	messageListener              func(message string)
+	messageReceiveListener       func(message string)
 	strangerConnectedListener    func()
 	strangerDisconnectedListener func()
 	strangerTypingStatusListener func(status bool)
+	messageSentListener          func(message string)
 	closed                       bool
 	writeMutex                   *sync.Mutex
 }
@@ -111,22 +112,6 @@ func (obcy *Obcy) Connect() (err error) {
 	doHttpGet("https://6obcy.org/rozmowa")
 	doHttpGet("https://6obcy.org/ajax/addressData")
 
-	resp, err := http.Get("https://api.ipify.org/?format=raw")
-	if err != nil {
-		return
-	}
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return
-	}
-	ip := string(bytes)
-	ip = strings.Replace(ip, ".", "#", -1)
-	fmt.Println("ip:", ip)
-
 	port := rand.Intn(8) + 7001
 	headers := http.Header{}
 	http.Header.Add(headers, "Host", fmt.Sprintf("server.6obcy.pl:%d", port))
@@ -146,11 +131,6 @@ func (obcy *Obcy) Connect() (err error) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	err = obcy.writePacket(
-		`4{"ev_name":"_cinfo","ev_data":{"cvdate":"2017-08-01","mobile":false,"cver":"v2.5","adf":"ajaxPHP","hash":"51#83#230#171","testdata":{"ckey":0,"recevsent":false}}}`)
-	if err != nil {
-		return
-	}
 	err = obcy.writePacket(`4{"ev_name":"_owack"}`)
 	return
 }
@@ -163,19 +143,31 @@ func (obcy *Obcy) writePacket(packet string) (err error) {
 	return
 }
 
-func (obcy *Obcy) WriteMessage(message string) (err error) {
-	//4{"ev_name":"_pmsg","ev_data":{"ckey":"0:192435472_W00Wyxx2jHzGS","msg":"please respond to me","idn":4},"ceid":7}
+func (obcy *Obcy) generateCeid() int {
 	obcy.ceid++
+	return obcy.ceid
+}
+
+func (obcy *Obcy) WriteMessage(message string) (err error) {
+	return obcy.WriteMessageFancy(message, false)
+}
+
+func (obcy *Obcy) WriteMessageFancy(message string, oszukajAI bool) (err error) {
+	if oszukajAI {
+		message = strings.Replace(message, " " /* space + 0 width space */, " ​", -1)
+		message = "\u202E" + fancytext.Reverse(message)
+	}
+
+	//4{"ev_name":"_pmsg","ev_data":{"ckey":"0:192435472_W00Wyxx2jHzGS","msg":"please respond to me","idn":4},"ceid":7}
 	return obcy.writePacket(fmt.Sprintf(
 		`4{"ev_name":"_pmsg","ev_data":{"ckey":"%s","msg":"%s","idn":%d},"ceid":%d}`,
-		escapeValue(obcy.ckey), escapeValue(message), obcy.messageId, obcy.ceid))
+		escapeValue(obcy.ckey), escapeValue(message), obcy.messageId, obcy.generateCeid()))
 }
 
 func (obcy *Obcy) SearchForRetard() (err error) {
-	obcy.ceid++
 	return obcy.writePacket(fmt.Sprintf(
 		`4{"ev_name":"_sas","ev_data":{"channel":"main","myself":{"sex":0,"loc":0},"preferences":{"sex":0,"loc":0}},"ceid":%d}`,
-		obcy.ceid))
+		obcy.generateCeid()))
 }
 
 func (obcy *Obcy) SetTypingStatus(typing bool) (err error) {
@@ -185,11 +177,10 @@ func (obcy *Obcy) SetTypingStatus(typing bool) (err error) {
 }
 
 func (obcy *Obcy) DisconnectRetard() (err error) {
-	obcy.ceid++
 	return obcy.writePacket(fmt.Sprintf(
 		`4{"ev_name":"_distalk","ev_data":{"ckey":"%s"},"ceid":%d}`,
 		escapeValue(obcy.ckey),
-		obcy.ceid))
+		obcy.generateCeid()))
 }
 
 func (obcy *Obcy) Close() (err error) {
@@ -198,7 +189,11 @@ func (obcy *Obcy) Close() (err error) {
 }
 
 func (obcy *Obcy) OnMessageReceive(messageListener func(message string)) {
-	obcy.messageListener = messageListener
+	obcy.messageReceiveListener = messageListener
+}
+
+func (obcy *Obcy) OnMessageSent(messageListener func(message string)) {
+	obcy.messageSentListener = messageListener
 }
 
 func (obcy *Obcy) OnStrangerConnected(strangerConnectedListener func()) {
@@ -239,6 +234,9 @@ func NewObcies(service *ObcyService) *Obcies {
 }
 
 func (obcies *Obcies) Connect() (err error) {
+	var clientOneName = fmt.Sprintf("[%d] jan", obcies.sessionId)
+	var clientTwoName = fmt.Sprintf("[%d] karol", obcies.sessionId)
+
 	dcChan := make(chan uint8)
 	obcies.disconnectListener = func() {
 		//log.Println("Obcies session closing")
@@ -256,6 +254,7 @@ func (obcies *Obcies) Connect() (err error) {
 	obcies.clientOne.OnStrangerConnected(func() {
 		obcies.queuedMessages = make([]string, 0)
 		obcies.clientOne.OnMessageReceive(func(message string) {
+			obcies.service.LogUserMessage(clientOneName, message, false)
 			obcies.queuedMessages = append(obcies.queuedMessages, message)
 		})
 
@@ -276,7 +275,7 @@ func (obcies *Obcies) Connect() (err error) {
 			}
 			obcies.clientTwo.strangerConnectedListener = nil
 
-			obcies.initMessageProxy()
+			obcies.initMessageProxy(clientOneName, clientTwoName)
 		})
 	})
 
@@ -317,10 +316,7 @@ func (obcies *Obcies) Connect() (err error) {
 	return
 }
 
-func (obcies *Obcies) initMessageProxy() {
-	var clientOneName = fmt.Sprintf("[%d] jan", obcies.sessionId)
-	var clientTwoName = fmt.Sprintf("[%d] karol", obcies.sessionId)
-
+func (obcies *Obcies) initMessageProxy(clientOneName, clientTwoName string) {
 	proxies := []func(logPrefix string, clientOne, clientTwo *Obcy){
 		obcies.listenConnectionStatusProxy,
 		obcies.listenMessageProxy,
@@ -334,6 +330,11 @@ func (obcies *Obcies) initMessageProxy() {
 }
 
 func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo *Obcy) {
+	var green bool
+	// xd swietny check
+	if strings.Contains(logPrefix, "karol") {
+		green = true
+	}
 	clientOne.OnMessageReceive(func(message string) {
 		obcies.chatMutex.Lock()
 		obcies.chatHistory = append(obcies.chatHistory, fmt.Sprintf("%s: %s", logPrefix, message))
@@ -355,7 +356,7 @@ func (obcies *Obcies) listenMessageProxy(logPrefix string, clientOne, clientTwo 
 			obcies.chatMutex.RUnlock()
 
 			if obcies.showMessages {
-				obcies.service.LogMessage(logPrefix + ": " + message)
+				obcies.service.LogUserMessage(logPrefix, message, green)
 			}
 		}
 
@@ -388,6 +389,7 @@ func (obcies *Obcies) listenConnectionStatusProxy(logPrefix string, clientOne, c
 			obcies.showMessages = false
 			obcies.service.LogMessage(logPrefix + " rozłączył się")
 		}
+
 		defer func() {
 			if obcies.disconnectListener != nil {
 				obcies.disconnectListener()
@@ -397,7 +399,7 @@ func (obcies *Obcies) listenConnectionStatusProxy(logPrefix string, clientOne, c
 
 		err := clientTwo.DisconnectRetard()
 		if err != nil {
-			//log.Println(logPrefix, "oponent disconnect failed. Reason:", err)
+			log.Println(logPrefix, "oponent disconnect failed. Reason:", err)
 			return
 		}
 	})

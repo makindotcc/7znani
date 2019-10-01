@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"obcyproxy/discord"
 	"sort"
 	"sync"
 	"time"
@@ -15,19 +16,21 @@ type ObcyService struct {
 	discordCommandService *DiscordCommandService
 	discordSession        *discordgo.Session
 	obcyPool              *ObcyPool
+	webhookExecutor       *discord.WebhookExecutor
 }
 
 func (service *ObcyService) ConsoleCommandService() *ConsoleCommandService {
 	return service.consoleCommandService
 }
 
-func NewObcyService() *ObcyService {
+func NewObcyService(webhookExecutorConfig *discord.WebhookExecutorConfig) *ObcyService {
 	service := &ObcyService{
 		consoleCommandService: NewConsoleCommandService(),
 		discordCommandService: NewDiscordCommandService(),
 		obciesMutex:           &sync.RWMutex{},
 		obciesMap:             make(map[int]*Obcies, 30),
 		obcyPool:              NewObcyPool(),
+		webhookExecutor:       discord.NewWebhookExecutor(webhookExecutorConfig),
 	}
 	service.registerCommand(NewSendCommand(service))
 	service.registerCommand(NewChatsCommand(service))
@@ -113,9 +116,19 @@ func (service *ObcyService) Session(sessionId int) *Obcies {
 func (service *ObcyService) LogMessage(message string) {
 	log.Println(message)
 
-	_, err := service.discordSession.ChannelMessageSend("628228137527934977", message)
+	_, err := service.discordSession.ChannelMessageSend("628346028717768735", message)
 	if err != nil {
 		log.Println("Sending discord message failed! Reason:", err)
+		return
+	}
+}
+
+func (service *ObcyService) LogUserMessage(user string, message string, green bool) {
+	log.Println(user + ": " + message)
+
+	err := service.webhookExecutor.ExecuteWebhook(user, message, green)
+	if err != nil {
+		log.Println("Executing discord webhook failed! Reason:", err)
 		return
 	}
 }
@@ -154,7 +167,7 @@ func (service *ObcyService) InjectMessage(sender CommandSender, sessionId int, w
 			sender.SendMessage("Write message error")
 		}
 		if pair.clientTwo != nil {
-			err = pair.clientTwo.WriteMessage(message)
+			err = pair.clientTwo.WriteMessageFancy(message, false)
 		} else {
 			sender.SendMessage("karol is nil")
 		}
