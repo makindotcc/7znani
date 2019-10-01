@@ -205,6 +205,7 @@ func (packet *ConnectionStatusPacket) Parse(value *fastjson.Value) (err error) {
 		return
 	}
 	packet.Hash = string(hash)
+	fmt.Println("hash:", packet.Hash)
 	return err
 }
 

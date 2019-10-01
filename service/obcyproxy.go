@@ -18,13 +18,15 @@ type ObcyService struct {
 	obcyPool              *ObcyPool
 	webhookExecutor       *discord.WebhookExecutor
 	logChannelId          string
+	localAddr             string
 }
 
 func (service *ObcyService) ConsoleCommandService() *ConsoleCommandService {
 	return service.consoleCommandService
 }
 
-func NewObcyService(webhookExecutorConfig *discord.WebhookExecutorConfig, logChannelId string) *ObcyService {
+func NewObcyService(webhookExecutorConfig *discord.WebhookExecutorConfig, logChannelId string,
+	localAddr string) *ObcyService {
 	service := &ObcyService{
 		consoleCommandService: NewConsoleCommandService(),
 		discordCommandService: NewDiscordCommandService(),
@@ -33,6 +35,7 @@ func NewObcyService(webhookExecutorConfig *discord.WebhookExecutorConfig, logCha
 		obcyPool:              NewObcyPool(),
 		webhookExecutor:       discord.NewWebhookExecutor(webhookExecutorConfig),
 		logChannelId:          logChannelId,
+		localAddr:             localAddr,
 	}
 	service.registerCommand(NewSendCommand(service))
 	service.registerCommand(NewChatsCommand(service))

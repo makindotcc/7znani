@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"obcyproxy/fancytext"
 	"strings"
@@ -65,6 +66,7 @@ type Obcy struct {
 	messageSentListener          func(message string)
 	closed                       bool
 	writeMutex                   *sync.Mutex
+	localAddr                    string
 }
 
 func (obcy *Obcy) Listen() {
@@ -118,6 +120,17 @@ func (obcy *Obcy) Connect() (err error) {
 	http.Header.Add(headers, "Origin", "https://6obcy.org")
 	http.Header.Add(headers, "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36")
 	websocket.DefaultDialer.EnableCompression = true
+
+	localAddr := &net.TCPAddr{
+		IP: net.ParseIP(obcy.localAddr),
+	}
+	websocket.DefaultDialer.NetDial = func(network, addr string) (conn net.Conn, e error) {
+		return (&net.Dialer{
+			Timeout:   3 * time.Second,
+			LocalAddr: localAddr,
+			DualStack: false,
+		}).Dial("tcp", addr)
+	}
 	obcy.client, _, err = websocket.DefaultDialer.Dial(fmt.Sprintf(serverAddress, port), headers)
 	if err != nil {
 		return
@@ -410,6 +423,7 @@ func (obcies *Obcies) createClient() (obcy *Obcy, err error) {
 	if obcy == nil || obcy.closed {
 		obcy = new(Obcy)
 		obcy.writeMutex = &sync.Mutex{}
+		obcy.localAddr = obcies.service.localAddr
 		err = obcy.Connect()
 		if err != nil {
 			err = fmt.Errorf("connect failed: %s", err.Error())
