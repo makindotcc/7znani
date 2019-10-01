@@ -118,7 +118,7 @@ func (service *ObcyService) Session(sessionId int) *Obcies {
 func (service *ObcyService) LogMessage(message string) {
 	log.Println(message)
 
-	_, err := service.discordSession.ChannelMessageSend("628346028717768735", message)
+	_, err := service.discordSession.ChannelMessageSend(service.logChannelId, message)
 	if err != nil {
 		log.Println("Sending discord message failed! Reason:", err)
 		return
