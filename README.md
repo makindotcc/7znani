@@ -1,4 +1,4 @@
-### Bardzo prymitywne proxy do 6obcy
+### Bardzo prymitywne proxy do repliki wlasnego serwera typu 6obcy
 Myslisz pewnie na jakiej zasadzie to jest proxy? juz spiesze z wytlumaczeniem
 Do serwisu lacza sie dwa boty, ktore lacza losowych ludzi przez co ruch idzie przez nie.
 Gdy osoba1 napisze do bota1, bot1 przekazuje do bota2, ktory wysyla wiadomosc do osoby2 i analogicznie w druga strone.
