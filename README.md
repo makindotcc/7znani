@@ -16,3 +16,5 @@ channelid - to chyba id kanalu discord gdzie sa wysylane wiadomosci
 ip - ip z ktorego maja laczyc sie boty (w przypadku gdy mamy dostepna pule adresow mozemy sobie wybrac dowolny)
 
 Bot trafia do rozmow z innymi botami, bo ta strona niezbyt dobrze dziala i wrzuca nawet legit userow do tych rozmow.
+
+UWAGA!!!!!!!!!!! Bot przygotowany pod wlasna replike 6obcy, nie uzywalem ani ty też nie uzywaj tego na 6obcy!!!!!!
